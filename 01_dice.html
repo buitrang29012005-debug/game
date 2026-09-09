@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>주사위 3개 게임</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    background:linear-gradient(135deg,#eef2ff,#f8fafc);
+    color:#172033;
+  }
+  .game{
+    width:min(900px,92vw); padding:34px 28px; text-align:center;
+    background:#fff; border-radius:28px; box-shadow:0 20px 60px #17203322;
+  }
+  h1{margin:0 0 8px;font-size:clamp(30px,5vw,48px)}
+  .sub{margin:0 0 28px;color:#64748b}
+  .dice-area{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:24px 0}
+  .die{
+    width:145px;height:145px;border-radius:24px;background:#fff;
+    border:3px solid #dbe3f0; display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 25px #17203316; font-size:82px; user-select:none;
+    transition:transform .12s;
+  }
+  .die.rolling{animation:shake .08s infinite alternate}
+  @keyframes shake{from{transform:rotate(-5deg) scale(1.03)}to{transform:rotate(5deg) scale(.98)}}
+  button{
+    border:0;border-radius:14px;padding:14px 26px;font-size:18px;font-weight:800;
+    cursor:pointer;background:#4f46e5;color:white;box-shadow:0 8px 18px #4f46e544;
+  }
+  button:hover{filter:brightness(1.06)}
+  button:active{transform:translateY(2px)}
+  button:disabled{opacity:.55;cursor:default}
+  .result{margin:25px 0 10px;font-size:22px}
+  .sum{font-size:56px;font-weight:900;color:#4f46e5}
+  .message{min-height:28px;font-weight:700}
+  .history{margin-top:26px;padding-top:20px;border-top:1px solid #e5e7eb}
+  .history h2{font-size:17px;margin:0 0 12px}
+  #history{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  .chip{background:#f1f5f9;padding:7px 11px;border-radius:999px;font-size:14px}
+</style>
+</head>
+<body>
+<main class="game">
+  <h1>🎲 주사위 3개 게임</h1>
+  <p class="sub">버튼을 눌러 주사위 3개를 굴려보세요!</p>
+
+  <section class="dice-area" aria-label="주사위">
+    <div class="die" id="d1">⚀</div>
+    <div class="die" id="d2">⚀</div>
+    <div class="die" id="d3">⚀</div>
+  </section>
+
+  <button id="roll">주사위 굴리기</button>
+
+  <div class="result">
+    <div>이번 결과 합계</div>
+    <div class="sum" id="sum">3</div>
+    <div class="message" id="message">행운을 빌어요!</div>
+  </div>
+
+  <div class="history">
+    <h2>최근 기록</h2>
+    <div id="history"><span class="chip">아직 기록이 없습니다</span></div>
+  </div>
+</main>
+
+<script>
+const faces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+const dice = [document.getElementById("d1"),document.getElementById("d2"),document.getElementById("d3")];
+const sumEl = document.getElementById("sum");
+const msgEl = document.getElementById("message");
+const historyEl = document.getElementById("history");
+const rollBtn = document.getElementById("roll");
+let history = [];
+
+function rand(){ return Math.floor(Math.random()*6)+1; }
+
+function roll(){
+  rollBtn.disabled = true;
+  msgEl.textContent = "🎲 굴리는 중...";
+  dice.forEach(d => d.classList.add("rolling"));
+
+  let ticks = 0;
+  const timer = setInterval(() => {
+    dice.forEach(d => d.textContent = faces[rand()-1]);
+    if (++ticks >= 14){
+      clearInterval(timer);
+      const values = [rand(),rand(),rand()];
+      values.forEach((v,i)=>dice[i].textContent=faces[v-1]);
+      dice.forEach(d => d.classList.remove("rolling"));
+      const total = values.reduce((a,b)=>a+b,0);
+      sumEl.textContent = total;
+      msgEl.textContent =
+        total === 18 ? "🎉 잭팟! 전부 6입니다!" :
+        total >= 15 ? "🔥 대박! 높은 숫자가 나왔어요!" :
+        total <= 5 ? "😅 아쉽지만 다시 도전!" :
+        "✨ 좋은 결과예요!";
+      history.unshift(values.join(" + ") + " = " + total);
+      history = history.slice(0,8);
+      historyEl.innerHTML = history.map(x => `<span class="chip">${x}</span>`).join("");
+      rollBtn.disabled = false;
+    }
+  }, 75);
+}
+rollBtn.addEventListener("click", roll);
+</script>
+</body>
+</html>

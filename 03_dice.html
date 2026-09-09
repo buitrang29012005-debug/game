@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 블록 블라스트 (Block Blast)</title>
+    <style>
+        :root {
+            --cell-size: 40px;
+            --grid-gap: 4px;
+            --bg-color: #1a1a2e;
+            --board-bg: #16213e;
+            --empty-cell: #0f3460;
+            --accent-color: #e94560;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+            color: var(--accent-color);
+        }
+
+        .score-board {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            gap: 20px;
+        }
+
+        /* 8x8 메인 게임판 */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, var(--cell-size));
+            grid-template-rows: repeat(8, var(--cell-size));
+            gap: var(--grid-gap);
+            background-color: var(--board-bg);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: var(--empty-cell);
+            border-radius: 4px;
+            transition: background-color 0.15s ease;
+        }
+
+        /* 하단 블록 대기소 */
+        .tray {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 360px;
+            height: 120px;
+            margin-top: 30px;
+        }
+
+        .piece-holder {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 블록 스타일 */
+        .block-shape {
+            display: grid;
+            gap: 2px;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .block-shape.dragging {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            transform: scale(1.1);
+            opacity: 0.9;
+        }
+
+        .block-unit {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .block-shape.dragging .block-unit {
+            width: var(--cell-size);
+            height: var(--cell-size);
+        }
+
+        /* 가이드 오버레이 */
+        .cell.preview {
+            background-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        /* 게임 오버 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: #16213e;
+            padding: 30px 50px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: var(--accent-color);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>BLOCK BLAST</h1>
+        <div class="score-board">
+            <div>점수: <span id="score">0</span></div>
+            <div>최고점수: <span id="high-score">0</span></div>
+        </div>
+    </div>
+
+    <!-- 8x8 메인 보드 -->
+    <div class="board" id="board"></div>
+
+    <!-- 블록 3개가 보관되는 트레이 -->
+    <div class="tray" id="tray">
+        <div class="piece-holder" id="holder-0"></div>
+        <div class="piece-holder" id="holder-1"></div>
+        <div class="piece-holder" id="holder-2"></div>
+    </div>
+
+    <!-- 게임 오버 창 -->
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content">
+            <h2>게임 오버!</h2>
+            <p>최종 점수: <span id="final-score">0</span></p>
+            <button onclick="restartGame()">다시 시작</button>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 8;
+        const boardEl = document.getElementById('board');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('high-score');
+        const modal = document.getElementById('game-over-modal');
+
+        let boardState = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+        let score = 0;
+        let highScore = localStorage.getItem('block_blast_high') || 0;
+        highScoreEl.textContent = highScore;
+
+        // 모양 및 색상 정의 (다양한 블록 형태)
+        const SHAPES = [
+            { shape: [[1]], color: '#FF5733' },
+            { shape: [[1, 1]], color: '#33FF57' },
+            { shape: [[1], [1]], color: '#33FF57' },
+            { shape: [[1, 1, 1]], color: '#3357FF' },
+            { shape: [[1], [1], [1]], color: '#3357FF' },
+            { shape: [[1, 1], [1, 1]], color: '#F39C12' },
+            { shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: '#8E44AD' },
+            { shape: [[1, 1, 1], [0, 1, 0]], color: '#1ABC9C' },
+            { shape: [[1, 0], [1, 1]], color: '#E74C3C' },
+            { shape: [[1, 1, 1, 1]], color: '#E67E22' }
+        ];
+
+        let currentPieces = [null, null, null];
+
+        // 1. 보드 초기화
+        function createBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        // 2. 대기 블록 3개 생성
+        function spawnPieces() {
+            for (let i = 0; i < 3; i++) {
+                if (!currentPieces[i]) {
+                    const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                    currentPieces[i] = randomShape;
+                    renderPieceInHolder(i, randomShape);
+                }
+            }
+            checkGameOver();
+        }
+
+        // 대기소에 블록 렌더링
+        function renderPieceInHolder(index, pieceData) {
+            const holder = document.getElementById(`holder-${index}`);
+            holder.innerHTML = '';
+
+            const blockEl = createBlockElement(pieceData, index, false);
+            holder.appendChild(blockEl);
+        }
+
+        // 블록 엘리먼트 생성
+        function createBlockElement(pieceData, pieceIndex, isDragging) {
+            const shape = pieceData.shape;
+            const container = document.createElement('div');
+            container.classList.add('block-shape');
+            if (isDragging) container.classList.add('dragging');
+
+            container.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
+
+            shape.forEach(row => {
+                row.forEach(val => {
+                    const unit = document.createElement('div');
+                    unit.classList.add('block-unit');
+                    if (val) {
+                        unit.style.backgroundColor = pieceData.color;
+                    } else {
+                        unit.style.opacity = '0';
+                    }
+                    container.appendChild(unit);
+                });
+            });
+
+            if (!isDragging) {
+                container.addEventListener('pointerdown', (e) => startDrag(e, pieceIndex));
+            }
+
+            return container;
+        }
+
+        // 3. 드래그 앤 드롭 구현
+        let activePieceIndex = null;
+        let dragEl = null;
+
+        function startDrag(e, index) {
+            e.preventDefault();
+            activePieceIndex = index;
+            const pieceData = currentPieces[index];
+
+            dragEl = createBlockElement(pieceData, index, true);
+            document.body.appendChild(dragEl);
+
+            moveDragEl(e.clientX, e.clientY);
+
+            window.addEventListener('pointermove', onDrag);
+            window.addEventListener('pointerup', endDrag);
+        }
+
+        function moveDragEl(x, y) {
+            if (dragEl) {
+                dragEl.style.left = `${x - dragEl.offsetWidth / 2}px`;
+                dragEl.style.top = `${y - dragEl.offsetHeight / 2 - 30}px`; // 손가락/마우스 가리지 않게 살짝 위로
+            }
+        }
+
+        function onDrag(e) {
+            moveDragEl(e.clientX, e.clientY);
+            clearPreview();
+
+            const targetCell = getCellUnderDrag(e.clientX, e.clientY);
+            if (targetCell) {
+                const r = parseInt(targetCell.dataset.row);
+                const c = parseInt(targetCell.dataset.col);
+                const pieceData = currentPieces[activePieceIndex];
+
+                if (canPlace(pieceData.shape, r, c)) {
+                    showPreview(pieceData.shape, r, c);
+                }
+            }
+        }
+
+        function endDrag(e) {
+            window.removeEventListener('pointermove', onDrag);
+            window.removeEventListener('pointerup', endDrag);
+
+            clearPreview();
+
+            if (dragEl) {
+                const targetCell = getCellUnderDrag(e.clientX, e.clientY);
+                if (targetCell) {
+                    const r = parseInt(targetCell.dataset.row);
+                    const c = parseInt(targetCell.dataset.col);
+                    const pieceData = currentPieces[activePieceIndex];
+
+                    if (canPlace(pieceData.shape, r, c)) {
+                        placePiece(pieceData, r, c);
+                        document.getElementById(`holder-${activePieceIndex}`).innerHTML = '';
+                        currentPieces[activePieceIndex] = null;
+
+                        // 줄 제거 확인
+                        clearLines();
+
+                        // 3개 모두 사용했으면 새로 생성
+                        if (currentPieces.every(p => p === null)) {
+                            spawnPieces();
+                        } else {
+                            checkGameOver();
+                        }
+                    }
+                }
+
+                dragEl.remove();
+                dragEl = null;
+            }
+        }
+
+        function getCellUnderDrag(x, y) {
+            const elements = document.elementsFromPoint(x, y);
+            return elements.find(el => el.classList.contains('cell'));
+        }
+
+        // 4. 놓을 수 있는지 체크
+        function canPlace(shape, startR, startC) {
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        const targetR = startR + r;
+                        const targetC = startC + c;
+
+                        if (targetR >= GRID_SIZE || targetC >= GRID_SIZE || boardState[targetR][targetC] !== null) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        // 가이드 미리보기
+        function showPreview(shape, startR, startC) {
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        const cell = boardEl.children[(startR + r) * GRID_SIZE + (startC + c)];
+                        if (cell) cell.classList.add('preview');
+                    }
+                }
+            }
+        }
+
+        function clearPreview() {
+            document.querySelectorAll('.cell.preview').forEach(cell => cell.classList.remove('preview'));
+        }
+
+        // 5. 블록 배치
+        function placePiece(pieceData, startR, startC) {
+            const shape = pieceData.shape;
+            let placedUnits = 0;
+
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        boardState[startR + r][startC + c] = pieceData.color;
+                        placedUnits++;
+                    }
+                }
+            }
+            updateScore(score + placedUnits * 10);
+            renderBoard();
+        }
+
+        // 6. 가로/세로 완성된 줄 제거
+        function clearLines() {
+            let rowsToClear = [];
+            let colsToClear = [];
+
+            // 가로줄 확인
+            for (let r = 0; r < GRID_SIZE; r++) {
+                if (boardState[r].every(cell => cell !== null)) {
+                    rowsToClear.push(r);
+                }
+            }
+
+            // 세로줄 확인
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let isFull = true;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (boardState[r][c] === null) {
+                        isFull = false;
+                        break;
+                    }
+                }
+                if (isFull) colsToClear.push(c);
+            }
+
+            // 데이터 삭제
+            rowsToClear.forEach(r => boardState[r].fill(null));
+            colsToClear.forEach(c => {
+                for (let r = 0; r < GRID_SIZE; r++) boardState[r][c] = null;
+            });
+
+            // 점수 추가 (콤보 보너스 적용)
+            const totalLines = rowsToClear.length + colsToClear.length;
+            if (totalLines > 0) {
+                const bonus = totalLines * 100 * totalLines; // 2줄 이상 시 보너스 점수
+                updateScore(score + bonus);
+                renderBoard();
+            }
+        }
+
+        function renderBoard() {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = boardEl.children[r * GRID_SIZE + c];
+                    const color = boardState[r][c];
+                    cell.style.backgroundColor = color ? color : 'var(--empty-cell)';
+                }
+            }
+        }
+
+        function updateScore(newScore) {
+            score = newScore;
+            scoreEl.textContent = score;
+            if (score > highScore) {
+                highScore = score;
+                highScoreEl.textContent = highScore;
+                localStorage.setItem('block_blast_high', highScore);
+            }
+        }
+
+        // 7. 게임 오버 체크 (더 이상 놓을 수 있는 공간이 없을 때)
+        function checkGameOver() {
+            let possibleMoves = 0;
+
+            currentPieces.forEach(piece => {
+                if (!piece) return;
+
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        if (canPlace(piece.shape, r, c)) {
+                            possibleMoves++;
+                        }
+                    }
+                }
+            });
+
+            if (possibleMoves === 0 && currentPieces.some(p => p !== null)) {
+                document.getElementById('final-score').textContent = score;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function restartGame() {
+            boardState = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+            currentPieces = [null, null, null];
+            updateScore(0);
+            modal.style.display = 'none';
+            renderBoard();
+            spawnPieces();
+        }
+
+        // 시작
+        createBoard();
+        spawnPieces();
+    </script>
+</body>
+</html>
