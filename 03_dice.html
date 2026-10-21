@@ -157,9 +157,33 @@
         button:hover {
             transform: scale(1.05);
         }
-    </style>
+    
+  .home-link {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 3000;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba(23, 32, 51, .12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .96);
+    color: #172033;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .16);
+    font: 700 14px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-decoration: none;
+  }
+  .home-link:hover { transform: translateY(-1px); }
+  .home-link:focus-visible { outline: 3px solid #6366f1; outline-offset: 3px; }
+  @media (max-width: 480px) {
+    .home-link { top: 10px; left: 10px; padding: 9px 12px; font-size: 13px; }
+  }
+</style>
 </head>
 <body>
+<a class="home-link" href="https://buitrang29012005-debug.github.io/" aria-label="개인 홈페이지 메인으로 돌아가기">← 홈페이지 메인</a>
 
     <div class="header">
         <h1>BLOCK BLAST</h1>
