@@ -64,6 +64,68 @@
   @media (max-width: 480px) {
     .home-link { top: 10px; left: 10px; padding: 9px 12px; font-size: 13px; }
   }
+
+  :root { color-scheme: light; }
+  body {
+    padding: 82px 18px 36px;
+    background:
+      radial-gradient(circle at 12% 12%, rgba(129,140,248,.22), transparent 30%),
+      radial-gradient(circle at 88% 82%, rgba(45,212,191,.16), transparent 28%),
+      #eef2ff;
+  }
+  .game {
+    position: relative;
+    width: min(900px, 100%);
+    padding: clamp(28px, 6vw, 56px);
+    border: 1px solid rgba(255,255,255,.85);
+    border-radius: 30px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 28px 80px rgba(31,41,85,.16);
+    backdrop-filter: blur(16px);
+  }
+  .game::before {
+    content: "LUCKY ROLL  ·  MINI ARCADE";
+    display: inline-block;
+    margin-bottom: 18px;
+    color: #6366f1;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .18em;
+  }
+  h1 { color: #172033; letter-spacing: -.055em; }
+  .sub { color: #64748b; }
+  .dice-area { gap: clamp(12px, 3vw, 24px); margin: 34px 0; }
+  .die {
+    width: clamp(82px, 20vw, 145px);
+    height: clamp(82px, 20vw, 145px);
+    border: 1px solid #dbe3f0;
+    border-radius: 25px;
+    background: linear-gradient(145deg,#fff,#f3f5ff);
+    box-shadow: 0 16px 35px rgba(51,65,120,.12), inset 0 1px #fff;
+    color: #4f46e5;
+    font-size: clamp(48px, 12vw, 82px);
+  }
+  button#roll {
+    padding: 15px 30px;
+    border-radius: 14px;
+    background: linear-gradient(135deg,#6366f1,#4f46e5);
+    box-shadow: 0 12px 26px rgba(79,70,229,.28);
+  }
+  .result { color: #475569; }
+  .sum { color: #4f46e5; letter-spacing: -.06em; }
+  .message { color: #334155; }
+  .history { border-color: #e2e8f0; }
+  .chip { background: #eef2ff; color: #4338ca; }
+  .home-link {
+    border: 1px solid rgba(99,102,241,.18);
+    color: #312e81;
+    box-shadow: 0 8px 24px rgba(31,41,85,.15);
+  }
+  @media (max-width: 480px) {
+    .game { border-radius: 22px; padding: 28px 18px; }
+    .dice-area { margin: 26px 0; }
+  }
+
 </style>
 </head>
 <body>
